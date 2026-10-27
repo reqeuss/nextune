@@ -181,7 +181,7 @@ class _HomePageState extends State<HomePage> {
     StreamBuilder<Duration?>(stream:player.durationStream,builder:(c,d)=>StreamBuilder<Duration>(stream:player.positionStream,builder:(c,p){
       final max=(d.data??Duration.zero).inMilliseconds.toDouble().clamp(1,double.infinity);
       final value=(p.data??Duration.zero).inMilliseconds.toDouble().clamp(0,max);
-      return Slider(dense:true,padding:EdgeInsets.zero,value:value,max:max,onChanged:(v)=>player.seek(Duration(milliseconds:v.round())));
+      return Slider(padding:EdgeInsets.zero,value:value,max:max,onChanged:(v)=>player.seek(Duration(milliseconds:v.round())));
     }))
   ]));
 }
