@@ -22,11 +22,15 @@ if not exist "android\settings.gradle" (
   echo [2/4] Android project already exists.
 )
 
-echo [3/4] Downloading dependencies...
+echo [3/4] Setting Android compile SDK to 36...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$files = @('android/app/build.gradle.kts', 'android/app/build.gradle'); foreach ($file in $files) { if (Test-Path $file) { $content = Get-Content $file -Raw; $content = $content.Replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'); $content = $content.Replace('compileSdk flutter.compileSdkVersion', 'compileSdk 36'); Set-Content -Path $file -Value $content -NoNewline } }"
+if errorlevel 1 goto failed
+
+echo [4/5] Downloading dependencies...
 call flutter pub get
 if errorlevel 1 goto failed
 
-echo [4/4] Building debug APK...
+echo [5/5] Building debug APK...
 call flutter build apk --debug
 if errorlevel 1 goto failed
 
