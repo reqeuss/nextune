@@ -35,6 +35,21 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android --org com.reqeuss .
 
+      - name: Set Android compile SDK to 36
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ("android/app/build.gradle.kts", "android/app/build.gradle"):
+              path = Path(name)
+              if not path.exists():
+                  continue
+              content = path.read_text()
+              content = content.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 36")
+              content = content.replace("compileSdk flutter.compileSdkVersion", "compileSdk 36")
+              path.write_text(content)
+          PY
+
       - name: Get dependencies
         run: flutter pub get
 
