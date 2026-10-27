@@ -152,11 +152,41 @@ class _HomePageState extends State<HomePage> {
     ]);
     final list = tab == 1 ? tracks.where((t)=>t.favorite).toList() : tracks;
     return ListView(padding:const EdgeInsets.fromLTRB(20,8,20,24),children:[
-      if(tab==0) Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFF30234E),Color(0xFF14131D)]),borderRadius:BorderRadius.circular(24),border:Border.all(color:violet.withValues(alpha:.25))),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('TON UNIVERS\nSONORE.',style:TextStyle(fontSize:30,height:1.08,fontWeight:FontWeight.w900)),
-        const SizedBox(height:8),const Text('Toute ta musique. À ta façon.',style:TextStyle(color:Colors.white60)),
-        const SizedBox(height:18),FilledButton.icon(onPressed:add,icon:const Icon(Icons.library_music),label:const Text('Importer ma musique'))
-      ])),
+      if (tab == 0)
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF30234E), Color(0xFF14131D)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: violet.withValues(alpha: .25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'TON UNIVERS\\nSONORE.',
+                style: TextStyle(
+                  fontSize: 30,
+                  height: 1.08,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Toute ta musique. À ta façon.',
+                style: TextStyle(color: Colors.white60),
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: add,
+                icon: const Icon(Icons.library_music),
+                label: const Text('Importer ma musique'),
+              ),
+            ],
+          ),
+        ),
       const SizedBox(height:24),
       Row(children:[Expanded(child:Text(tab==1?'Tes favoris':'Ta bibliothèque',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold))),Text('${list.length} titres',style:const TextStyle(color:Colors.white54,fontSize:12))]),
       const SizedBox(height:12),
