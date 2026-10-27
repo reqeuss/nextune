@@ -209,8 +209,8 @@ class _HomePageState extends State<HomePage> {
       IconButton(onPressed:next,icon:const Icon(Icons.skip_next_rounded))
     ]),
     StreamBuilder<Duration?>(stream:player.durationStream,builder:(c,d)=>StreamBuilder<Duration>(stream:player.positionStream,builder:(c,p){
-      final max=(d.data??Duration.zero).inMilliseconds.toDouble().clamp(1,double.infinity);
-      final value=(p.data??Duration.zero).inMilliseconds.toDouble().clamp(0,max);
+      final max=(d.data??Duration.zero).inMilliseconds.toDouble().clamp(1.0,double.infinity).toDouble();
+      final value=(p.data??Duration.zero).inMilliseconds.toDouble().clamp(0.0,max).toDouble();
       return Slider(padding:EdgeInsets.zero,value:value,max:max,onChanged:(v)=>player.seek(Duration(milliseconds:v.round())));
     }))
   ]));
