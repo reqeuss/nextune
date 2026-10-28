@@ -13,9 +13,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: nextune-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,6 +31,12 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -35,30 +46,102 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android --org com.reqeuss .
 
-      - name: Set Android compile SDK to 36
+      - name: Set application compile SDK to 36
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          for name in ("android/app/build.gradle.kts", "android/app/build.gradle"):
-              path = Path(name)
+          import re
+
+          candidates = (Path("android/app/build.gradle.kts"), Path("android/app/build.gradle"))
+          found = False
+          for path in candidates:
               if not path.exists():
                   continue
+              found = True
               content = path.read_text()
               content = content.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 36")
               content = content.replace("compileSdk flutter.compileSdkVersion", "compileSdk 36")
               path.write_text(content)
+          if not found:
+              raise SystemExit("Could not find the generated Android app Gradle file.")
           PY
 
-      - name: Get dependencies
+      - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Set Android plugin compile SDKs to 36
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          from urllib.parse import unquote, urlparse
+
+          config_path = Path(".dart_tool/package_config.json")
+          if not config_path.exists():
+              raise SystemExit("Flutter package config was not generated.")
+
+          config = json.loads(config_path.read_text())
+          patched_files = []
+          file_picker_patched = False
+
+          for package in config.get("packages", []):
+              name = package.get("name", "")
+              root_uri = package.get("rootUri", "")
+              parsed = urlparse(root_uri)
+              if parsed.scheme == "file":
+                  root = Path(unquote(parsed.path))
+              else:
+                  root = (config_path.parent / unquote(root_uri)).resolve()
+
+              android_dir = root / "android"
+              if not android_dir.is_dir():
+                  continue
+
+              for gradle_file in list(android_dir.glob("build.gradle")) + list(android_dir.glob("build.gradle.kts")):
+                  original = gradle_file.read_text()
+                  updated = original
+                  updated = re.sub(r"(?m)(\\bcompileSdkVersion\\s*(?:=\\s*)?)(\\d+)", r"\\g<1>36", updated)
+                  updated = re.sub(r"(?m)(\\bcompileSdkVersion\\s*\\(\\s*)(\\d+)(\\s*\\))", r"\\g<1>36\\3", updated)
+                  updated = re.sub(r"(?m)(\\bcompileSdk\\s*=\\s*)(\\d+)", r"\\g<1>36", updated)
+                  updated = re.sub(r"(?m)(\\bcompileSdk\\s+)(\\d+)", r"\\g<1>36", updated)
+                  if updated != original:
+                      gradle_file.write_text(updated)
+                      patched_files.append(f"{name}: {gradle_file}")
+                      if name == "file_picker":
+                          file_picker_patched = True
+
+          print("Patched plugin Gradle files:")
+          for path in patched_files:
+              print(f" - {path}")
+
+          if not file_picker_patched:
+              raise SystemExit(
+                  "file_picker Gradle file was not patched. Inspect its Android build.gradle "
+                  "because this dependency previously compiled against Android SDK 34."
+              )
+          PY
+
+      - name: Verify Flutter and Android configuration
+        run: |
+          flutter --version
+          flutter doctor -v
+          grep -R -nE 'compileSdk(Version)?[ =]+36' android/app android 2>/dev/null || true
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Verify APK output
+        run: |
+          test -s build/app/outputs/flutter-apk/app-release.apk
+          ls -lh build/app/outputs/flutter-apk/app-release.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nextune-android-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: nextune-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+          retention-days: 14
