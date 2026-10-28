@@ -96,15 +96,8 @@ class _PlayerHomeState extends State<PlayerHome> {
       final path = f.path;
       if (path == null || songs.any((s) => s.path == path)) continue;
       var title = f.name.replaceAll(RegExp(r'\.[^.]+$'), '');
-      var artist = 'Artiste inconnu', album = '', cover;
-      try {
-        final m = await MetadataGod.readMetadata(file: path);
-        if ((m.title ?? '').trim().isNotEmpty) title = m.title!.trim();
-        if ((m.artist ?? '').trim().isNotEmpty) artist = m.artist!.trim();
-        album = m.album ?? '';
-        if (m.picture?.data.isNotEmpty == true) cover = base64Encode(m.picture!.data);
-      } catch (_) {}
-      songs.add(Song(path:path, title:title, artist:artist, album:album, cover:cover));
+      const artist = 'Artiste inconnu';
+      songs.add(Song(path:path, title:title, artist:artist));
       added++;
     }
     await _save();
