@@ -98,7 +98,8 @@ class _YoutubePageState extends State<YoutubePage> {
     try{data=jsonDecode(response.body) as Map<String,dynamic>;}catch(_){}
     if(response.statusCode!=200){
       final error=data['error'] as Map<String,dynamic>?;
-      final reason=((error?['errors'] as List?)?.firstOrNull as Map<String,dynamic>?)?['reason']?.toString();
+      final errors=error?['errors'] as List?;
+      final reason=errors!=null&&errors.isNotEmpty?(errors.first as Map<String,dynamic>?)?['reason']?.toString():null;
       final message=error?['message']?.toString()??'Erreur HTTP ${response.statusCode}';
       if(reason=='quotaExceeded'||message.toLowerCase().contains('quota'))throw Exception('Quota YouTube épuisé. Réessaie après la réinitialisation du quota.');
       if(response.statusCode==403)throw Exception('Accès refusé. Vérifie la clé, les restrictions et YouTube Data API v3.');
@@ -153,7 +154,8 @@ class _YoutubePageState extends State<YoutubePage> {
 
   Future<void> _play(YoutubeTrack track,{List<YoutubeTrack>? from}) async {
     if(from!=null){
-      _queue..clear()..addAll(from);
+      final source=List<YoutubeTrack>.from(from);
+      _queue..clear()..addAll(source);
       if(_shuffle&&_queue.length>1){
         final selected=track;
         _queue.shuffle();
@@ -173,7 +175,6 @@ class _YoutubePageState extends State<YoutubePage> {
       if(_player==null){
         _player=YoutubePlayerController(params:const YoutubePlayerParams(
           showControls:true,showFullscreenButton:true,interfaceLanguage:'fr',privacyEnhancedMode:true,
-          strictRelatedVideos:true,
         ));
         if(mounted)setState((){});
         await _player!.loadVideoById(videoId:track.id);
