@@ -115,24 +115,31 @@ jobs:
               gradle_files = list(android_dir.glob("build.gradle")) + list(android_dir.glob("build.gradle.kts"))
               for gradle_file in gradle_files:
                   original = gradle_file.read_text()
-                  updated = original
-
-                  # Replace numeric values and helper expressions, e.g. safeExtGet(..., 34).
-                  updated = re.sub(
-                      r"(?m)^(\s*compileSdkVersion\s+)[^\r\n]+",
-                      r"\g<1>36",
-                      updated,
-                  )
-                  updated = re.sub(
-                      r"(?m)^(\s*compileSdk\s*=\s*)[^\r\n]+",
-                      r"\g<1>36",
-                      updated,
-                  )
-                  updated = re.sub(
-                      r"(?m)^(\s*compileSdk\s+)[^\r\n]+",
-                      r"\g<1>36",
-                      updated,
-                  )
+                  is_kotlin_dsl = gradle_file.name.endswith(".kts")
+                  if is_kotlin_dsl:
+                      # Kotlin DSL requires assignment syntax: compileSdk = 36.
+                      updated = re.sub(
+                          r"(?m)^(\s*)compileSdkVersion\s+.*$",
+                          r"\g<1>compileSdk = 36",
+                          original,
+                      )
+                      updated = re.sub(
+                          r"(?m)^(\s*)compileSdk(?:\s*=\s*|\s+).*$",
+                          r"\g<1>compileSdk = 36",
+                          updated,
+                      )
+                  else:
+                      # Groovy DSL accepts compileSdkVersion 36.
+                      updated = re.sub(
+                          r"(?m)^(\s*)compileSdkVersion\s+.*$",
+                          r"\g<1>compileSdkVersion 36",
+                          original,
+                      )
+                      updated = re.sub(
+                          r"(?m)^(\s*)compileSdk(?:\s*=\s*|\s+).*$",
+                          r"\g<1>compileSdkVersion 36",
+                          updated,
+                      )
 
                   if updated != original:
                       gradle_file.write_text(updated)
@@ -140,8 +147,6 @@ jobs:
 
                   if name == "file_picker":
                       file_picker_files.append(gradle_file)
-                      if updated != original:
-                          gradle_file.write_text(updated)
 
           print("Patched plugin Gradle files:")
           for path in patched_files:
@@ -153,19 +158,14 @@ jobs:
           file_picker_ok = False
           for gradle_file in file_picker_files:
               gradle_text = gradle_file.read_text()
+              expected = r"(?m)^\s*compileSdk\s*=\s*36\s*$" if gradle_file.name.endswith(".kts") else r"(?m)^\s*compileSdkVersion\s+36\s*$"
               print(f"Checking file_picker Gradle file: {gradle_file}")
-              if re.search(
-                  r"(?m)^\s*(?:compileSdkVersion\s+|compileSdk\s*=\s*|compileSdk\s+)36\s*$",
-                  gradle_text,
-              ):
+              if re.search(expected, gradle_text):
                   file_picker_ok = True
                   break
 
           if not file_picker_ok:
-              raise SystemExit(
-                  "Could not set file_picker compile SDK to 36. "
-                  "The plugin Gradle file uses an unsupported declaration."
-              )
+              raise SystemExit("Could not set file_picker compile SDK to 36.")
           PY
 
       - name: Verify Flutter and Android configuration
