@@ -17,7 +17,7 @@ const cyan = Color(0xFF83E8D0);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try { await MetadataGod.initialize(); } catch (_) {}
+  try { MetadataGod.initialize(); } catch (_) {}
   runApp(const NextuneApp());
 }
 
