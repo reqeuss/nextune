@@ -55,7 +55,7 @@ class MainActivity : FlutterActivity() {
                     val range = bandLevelRange
                     for (band in 0 until numberOfBands) {
                         val hz = getCenterFreq(band.toShort()) / 1000
-                        val boost = if (hz < 250) range[1].coerceAtMost(900) else 0
+                        val boost = if (hz < 250) range[1].toInt().coerceAtMost(900) else 0
                         setBandLevel(band.toShort(), boost.toShort())
                     }
                     enabled = true
