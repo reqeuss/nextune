@@ -6,6 +6,7 @@ import android.media.audiofx.EnvironmentalReverb
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import kotlin.math.roundToInt
 
 class MainActivity : FlutterActivity() {
     private val channelName = "nextune/audio_effects"
@@ -22,51 +23,66 @@ class MainActivity : FlutterActivity() {
                     return@setMethodCallHandler
                 }
                 val sessionId = call.argument<Int>("sessionId")
-                val effect = call.argument<String>("effect") ?: "Normal"
+                val effect = call.argument<String>("effect") ?: "Original"
+                val bass = (call.argument<Number>("bass")?.toDouble() ?: 0.0).coerceIn(0.0, 1.0)
+                val treble = (call.argument<Number>("treble")?.toDouble() ?: 0.0).coerceIn(0.0, 1.0)
+                val room = (call.argument<Number>("reverb")?.toDouble() ?: 0.0).coerceIn(0.0, 1.0)
                 if (sessionId == null || sessionId <= 0) {
                     result.success(false)
                     return@setMethodCallHandler
                 }
                 try {
-                    applyAudioEffect(sessionId, effect)
+                    applyAudioEffect(sessionId, effect, bass, treble, room)
                     result.success(true)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     releaseEffects()
                     result.success(false)
                 }
             }
     }
 
-    private fun applyAudioEffect(sessionId: Int, effect: String) {
+    private fun applyAudioEffect(sessionId: Int, effect: String, bass: Double, treble: Double, room: Double) {
         releaseEffects()
-        when (effect) {
-            "Bass Boost" -> {
-                bassBoost = BassBoost(0, sessionId).apply {
-                    setStrength(650)
-                    enabled = true
-                }
+        val bassAmount = when (effect) {
+            "BassMax" -> 1.0
+            "Bass Boost" -> maxOf(bass, 0.65)
+            else -> bass
+        }
+        val trebleAmount = if (effect == "Nightcore") maxOf(treble, 0.2) else treble
+        val reverbAmount = if (effect == "Slowed + Reverb" || effect == "Dream") maxOf(room, 0.65) else room
+
+        if (bassAmount > 0.01) {
+            bassBoost = BassBoost(0, sessionId).apply {
+                setStrength((bassAmount * 1000).roundToInt().toShort())
+                enabled = true
             }
-            "BassMax" -> {
-                bassBoost = BassBoost(0, sessionId).apply {
-                    setStrength(1000)
-                    enabled = true
-                }
-                equalizer = Equalizer(0, sessionId).apply {
-                    val range = bandLevelRange
-                    for (band in 0 until numberOfBands) {
-                        val hz = getCenterFreq(band.toShort()) / 1000
-                        val boost = if (hz < 250) range[1].toInt().coerceAtMost(900) else 0
-                        setBandLevel(band.toShort(), boost.toShort())
+        }
+
+        if (bassAmount > 0.01 || trebleAmount > 0.01 || effect == "BassMax" || effect == "Nightcore") {
+            equalizer = Equalizer(0, sessionId).apply {
+                val range = bandLevelRange
+                val minLevel = range[0].toInt()
+                val maxLevel = range[1].toInt()
+                for (band in 0 until numberOfBands) {
+                    val frequency = getCenterFreq(band.toShort()) / 1000
+                    val factor = when {
+                        frequency < 250 -> bassAmount
+                        frequency >= 4000 -> trebleAmount
+                        else -> 0.0
                     }
-                    enabled = true
+                    val level = (factor * maxLevel).roundToInt().coerceIn(minLevel, maxLevel)
+                    setBandLevel(band.toShort(), level.toShort())
                 }
+                enabled = true
             }
-            "Slowed + Reverb" -> {
-                reverb = EnvironmentalReverb(0, sessionId).apply {
-                    reverbLevel = 650
-                    roomLevel = -1000
-                    enabled = true
-                }
+        }
+
+        if (reverbAmount > 0.01) {
+            reverb = EnvironmentalReverb(0, sessionId).apply {
+                reverbLevel = (-9000 + reverbAmount * 9000).roundToInt().toShort()
+                roomLevel = (-9000 + reverbAmount * 8000).roundToInt().toShort()
+                decayTime = (500 + reverbAmount * 2500).roundToInt()
+                enabled = true
             }
         }
     }
