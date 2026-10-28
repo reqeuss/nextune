@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:metadata_god/metadata_god.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'youtube_page.dart';
@@ -17,7 +16,6 @@ const cyan = Color(0xFF83E8D0);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try { MetadataGod.initialize(); } catch (_) {}
   runApp(const NextuneApp());
 }
 
