@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 void main() => runApp(const NextuneApp());
 const violet = Color(0xFF9B6BFF);
@@ -30,6 +31,16 @@ class Track {
   Map<String, dynamic> toJson() => {'path': path, 'title': title, 'favorite': favorite};
   factory Track.fromJson(Map<String, dynamic> j) => Track(j['path'] as String, j['title'] as String, favorite: j['favorite'] == true);
 }
+class Playlist {
+  Playlist(this.name, {List<String>? paths}) : paths = paths ?? [];
+  String name;
+  final List<String> paths;
+  Map<String, dynamic> toJson() => {'name': name, 'paths': paths};
+  factory Playlist.fromJson(Map<String, dynamic> j) => Playlist(
+    j['name'] as String? ?? 'Playlist',
+    paths: (j['paths'] as List? ?? []).whereType<String>().toList(),
+  );
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,25 +48,125 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 class _HomePageState extends State<HomePage> {
+  static const effectsChannel = MethodChannel('nextune/audio_effects');
   final AudioPlayer player = AudioPlayer();
   final List<Track> tracks = [];
+  final List<Playlist> playlists = [];
   int current = -1, tab = 0;
+  int? audioSessionId;
+  Playlist? selectedPlaylist;
   bool ready = false;
   String effect = 'Normal';
 
   @override
-  void initState() { super.initState(); load(); }
+  void initState() {
+    super.initState();
+    player.androidAudioSessionIdStream.listen((id) {
+      audioSessionId = id;
+      applyEffect(effect);
+    });
+    load();
+  }
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
     try {
       final raw = p.getString('tracks');
       if (raw != null) tracks.addAll((jsonDecode(raw) as List).map((e) => Track.fromJson(Map<String,dynamic>.from(e))));
+      final savedPlaylists = p.getString('playlists');
+      if (savedPlaylists != null) playlists.addAll((jsonDecode(savedPlaylists) as List).map((e) => Playlist.fromJson(Map<String,dynamic>.from(e))));
     } catch (_) {}
     if (mounted) setState(() => ready = true);
   }
   Future<void> save() async {
     final p = await SharedPreferences.getInstance();
     await p.setString('tracks', jsonEncode(tracks.map((t) => t.toJson()).toList()));
+    await p.setString('playlists', jsonEncode(playlists.map((p) => p.toJson()).toList()));
+  }
+  Future<void> applyEffect(String value) async {
+    effect = value;
+    if (value == 'Nightcore') {
+      await player.setSpeed(1.2);
+    } else if (value == 'Slowed + Reverb') {
+      await player.setSpeed(0.85);
+    } else {
+      await player.setSpeed(1.0);
+    }
+    try {
+      await effectsChannel.invokeMethod('setEffect', {'sessionId': audioSessionId, 'effect': value});
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
+  Future<void> createPlaylist() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Nouvelle playlist'),
+      content: TextField(controller: controller, autofocus: true, maxLength: 40,
+        decoration: const InputDecoration(hintText: 'Ex. : Night drive'),
+        onSubmitted: (v) => Navigator.pop(context, v.trim())),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+        FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Créer')),
+      ],
+    ));
+    controller.dispose();
+    if (name == null || name.trim().isEmpty) return;
+    if (playlists.any((p) => p.name.toLowerCase() == name.toLowerCase())) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cette playlist existe déjà.')));
+      return;
+    }
+    playlists.add(Playlist(name.trim()));
+    await save();
+    if (mounted) setState(() {});
+  }
+  Future<void> addToPlaylist(Track track) async {
+    if (playlists.isEmpty) {
+      await createPlaylist();
+      if (playlists.isEmpty) return;
+    }
+    final chosen = await showModalBottomSheet<Playlist>(context: context, backgroundColor: surface,
+      builder: (context) => SafeArea(child: ListView(shrinkWrap: true, children: [
+        const ListTile(title: Text('Ajouter à une playlist', style: TextStyle(fontWeight: FontWeight.bold))),
+        ...playlists.map((p) => ListTile(leading: const Icon(Icons.queue_music, color: violet),
+          title: Text(p.name), subtitle: Text('${p.paths.length} titres'), onTap: () => Navigator.pop(context, p))),
+      ])));
+    if (chosen == null) return;
+    if (!chosen.paths.contains(track.path)) chosen.paths.add(track.path);
+    await save();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ajouté à « ${chosen.name} »')));
+    }
+  }
+  Future<void> renamePlaylist(Playlist playlist) async {
+    final controller = TextEditingController(text: playlist.name);
+    final name = await showDialog<String>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Renommer la playlist'),
+      content: TextField(controller: controller, autofocus: true, maxLength: 40),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+        FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Enregistrer')),
+      ],
+    ));
+    controller.dispose();
+    if (name == null || name.isEmpty) return;
+    playlist.name = name;
+    await save();
+    if (mounted) setState(() {});
+  }
+  Future<void> deletePlaylist(Playlist playlist) async {
+    final ok = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Supprimer cette playlist ?'),
+      content: Text('« ${playlist.name} » sera supprimée. Les fichiers audio resteront sur ton téléphone.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Supprimer')),
+      ],
+    ));
+    if (ok != true) return;
+    playlists.remove(playlist);
+    if (selectedPlaylist == playlist) selectedPlaylist = null;
+    await save();
+    if (mounted) setState(() {});
   }
   Future<void> add() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.audio, allowMultiple: true);
@@ -130,8 +241,9 @@ class _HomePageState extends State<HomePage> {
       ])),
       Expanded(child: ready ? page() : const Center(child:CircularProgressIndicator())),
       if (now != null) miniPlayer(now),
-      NavigationBar(backgroundColor:const Color(0xFF101017),indicatorColor:violet.withValues(alpha:.2),selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:const [
+      NavigationBar(backgroundColor:const Color(0xFF101017),indicatorColor:violet.withValues(alpha:.2),selectedIndex:tab,onDestinationSelected:(v)=>setState(() { tab=v; selectedPlaylist=null; }),destinations:const [
         NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'Accueil'),
+        NavigationDestination(icon:Icon(Icons.queue_music),label:'Playlists'),
         NavigationDestination(icon:Icon(Icons.favorite_border),selectedIcon:Icon(Icons.favorite),label:'Favoris'),
         NavigationDestination(icon:Icon(Icons.tune),label:'Réglages')
       ])
@@ -139,7 +251,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget page() {
-    if (tab == 2) return ListView(padding:const EdgeInsets.all(20),children:[
+    if (tab == 3) return ListView(padding:const EdgeInsets.all(20),children:[
       const Text('Réglages',style:TextStyle(fontSize:28,fontWeight:FontWeight.w900)),
       const SizedBox(height:8),const Text('Tes données restent sur ton appareil.',style:TextStyle(color:Colors.white54)),
       const SizedBox(height:24),
@@ -147,10 +259,58 @@ class _HomePageState extends State<HomePage> {
       setting(Icons.file_open,'Importer une sauvegarde','Restaurer les métadonnées',importBackup),
       const SizedBox(height:24),const Text('ÉGALISEUR — APERÇU',style:TextStyle(color:violet,letterSpacing:1.5,fontWeight:FontWeight.bold)),
       const SizedBox(height:12),
-      ...['Bass Boost','BassMax','Nightcore','Slowed + Reverb','Normal'].map((e)=>RadioListTile<String>(value:e,groupValue:effect,title:Text(e),activeColor:violet,onChanged:(v)=>setState(()=>effect=v!))),
-      const Text('Les effets sont pour le moment des aperçus : le traitement du son sera ajouté ensuite.',style:TextStyle(color:Colors.white38,fontSize:12))
+      ...['Bass Boost','BassMax','Nightcore','Slowed + Reverb','Normal'].map((e)=>RadioListTile<String>(value:e,groupValue:effect,title:Text(e),activeColor:violet,onChanged:(v) { if (v != null) applyEffect(v); })),
+      const Text('Nightcore et Slowed changent la vitesse en direct. Bass Boost et BassMax activent le traitement audio Android lorsqu’il est pris en charge.',style:TextStyle(color:Colors.white38,fontSize:12))
     ]);
-    final list = tab == 1 ? tracks.where((t)=>t.favorite).toList() : tracks;
+    if (tab == 1) {
+      if (selectedPlaylist != null) {
+        final playlist = selectedPlaylist!;
+        final list = tracks.where((t) => playlist.paths.contains(t.path)).toList();
+        return ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
+          Row(children: [
+            IconButton(onPressed: () => setState(() => selectedPlaylist = null), icon: const Icon(Icons.arrow_back)),
+            Expanded(child: Text(playlist.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900))),
+            IconButton(onPressed: () => renamePlaylist(playlist), icon: const Icon(Icons.edit_outlined)),
+            IconButton(onPressed: () => deletePlaylist(playlist), icon: const Icon(Icons.delete_outline, color: Colors.redAccent)),
+          ]),
+          Text('${list.length} titres • fichiers locaux disponibles hors connexion', style: const TextStyle(color: Colors.white54)),
+          const SizedBox(height: 16),
+          if (list.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('Playlist vide. Ajoute des titres depuis ta bibliothèque.', textAlign: TextAlign.center)),
+          ...list.map((t) => ListTile(
+            leading: const Icon(Icons.music_note, color: violet),
+            title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: const Text('Fichier local'),
+            onTap: () => play(tracks.indexOf(t)),
+            trailing: IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () async { playlist.paths.remove(t.path); await save(); if (mounted) setState(() {}); }),
+          )),
+        ]);
+      }
+      return ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
+        Row(children: [
+          const Expanded(child: Text('Tes playlists', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900))),
+          FilledButton.icon(onPressed: createPlaylist, icon: const Icon(Icons.add), label: const Text('Créer')),
+        ]),
+        const SizedBox(height: 8),
+        const Text('Tes playlists sont enregistrées sur ce téléphone.', style: TextStyle(color: Colors.white54)),
+        const SizedBox(height: 16),
+        if (playlists.isEmpty) Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(20)), child: const Column(children: [
+          Icon(Icons.queue_music, size: 42, color: violet), SizedBox(height: 10),
+          Text('Crée ta première playlist', style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(height: 6), Text('Puis ajoute tes titres depuis la bibliothèque.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12)),
+        ])),
+        ...playlists.map((p) => Container(margin: const EdgeInsets.only(bottom: 9), decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(16)), child: ListTile(
+          leading: Container(width: 46, height: 46, decoration: BoxDecoration(color: violet.withValues(alpha: .15), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.queue_music, color: violet)),
+          title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Text('${p.paths.length} titres'),
+          onTap: () => setState(() => selectedPlaylist = p),
+          trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'rename') renamePlaylist(p); if (v == 'delete') deletePlaylist(p); }, itemBuilder: (_) => const [
+            PopupMenuItem(value: 'rename', child: Text('Renommer')),
+            PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+          ]),
+        ))),
+      ]);
+    }
+    final list = tab == 2 ? tracks.where((t)=>t.favorite).toList() : tracks;
     return ListView(padding:const EdgeInsets.fromLTRB(20,8,20,24),children:[
       if (tab == 0)
         Container(
@@ -188,12 +348,15 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       const SizedBox(height:24),
-      Row(children:[Expanded(child:Text(tab==1?'Tes favoris':'Ta bibliothèque',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold))),Text('${list.length} titres',style:const TextStyle(color:Colors.white54,fontSize:12))]),
+      Row(children:[Expanded(child:Text(tab==2?'Tes favoris':'Ta bibliothèque',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold))),Text('${list.length} titres',style:const TextStyle(color:Colors.white54,fontSize:12))]),
       const SizedBox(height:12),
       if(list.isEmpty) Container(padding:const EdgeInsets.all(26),decoration:BoxDecoration(color:surface,borderRadius:BorderRadius.circular(20)),child:const Column(children:[Icon(Icons.album_outlined,size:42,color:violet),SizedBox(height:10),Text('Ta musique commence ici',style:TextStyle(fontWeight:FontWeight.bold)),SizedBox(height:6),Text('Importe des fichiers audio depuis ton téléphone.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white54,fontSize:12))]))
       else ...list.map((t) {
         final i=tracks.indexOf(t), active=i==current;
-        return Container(margin:const EdgeInsets.only(bottom:8),decoration:BoxDecoration(color:active?violet.withValues(alpha:.13):surface,borderRadius:BorderRadius.circular(15)),child:ListTile(onTap:()=>play(i),leading:Container(width:42,height:42,decoration:BoxDecoration(color:const Color(0xFF292438),borderRadius:BorderRadius.circular(12)),child:Icon(active&&player.playing?Icons.equalizer:Icons.music_note,color:violet)),title:Text(t.title,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w600,color:active?violet:Colors.white)),subtitle:const Text('Fichier local',style:TextStyle(fontSize:11,color:Colors.white54)),trailing:IconButton(onPressed:()async{setState(()=>t.favorite=!t.favorite);await save();},icon:Icon(t.favorite?Icons.favorite:Icons.favorite_border,color:t.favorite?const Color(0xFFFF6C9D):Colors.white38))));
+        return Container(margin:const EdgeInsets.only(bottom:8),decoration:BoxDecoration(color:active?violet.withValues(alpha:.13):surface,borderRadius:BorderRadius.circular(15)),child:ListTile(onTap:()=>play(i),leading:Container(width:42,height:42,decoration:BoxDecoration(color:const Color(0xFF292438),borderRadius:BorderRadius.circular(12)),child:Icon(active&&player.playing?Icons.equalizer:Icons.music_note,color:violet)),title:Text(t.title,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w600,color:active?violet:Colors.white)),subtitle:const Text('Fichier local',style:TextStyle(fontSize:11,color:Colors.white54)),trailing:Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(onPressed: () => addToPlaylist(t), tooltip: 'Ajouter à une playlist', icon: const Icon(Icons.playlist_add, color: violet)),
+          IconButton(onPressed:()async{setState(()=>t.favorite=!t.favorite);await save();},icon:Icon(t.favorite?Icons.favorite:Icons.favorite_border,color:t.favorite?const Color(0xFFFF6C9D):Colors.white38)),
+        ])));
       })
     ]);
   }
