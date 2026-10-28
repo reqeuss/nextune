@@ -1,46 +1,44 @@
 # Nextune
 
-**Your sound. Your rules.** A local-first Android music-player prototype built with Flutter.
+**Your sound, reimagined.** A Flutter Android music player with local library artwork, live audio controls, playlists and a YouTube discovery/player tab.
 
-## Prototype features
-- Import audio files from your Android device
-- Play, pause, skip and seek through local tracks
-- Favorites saved locally
-- Create, rename and delete local playlists
-- Add tracks to playlists and play them offline when the source file is on the device
-- Export and import a JSON backup
-- Dark violet interface with live playback-speed controls and Android Bass Boost, BassMax and reverb effects where the device supports them
+## Features
 
-**Not implemented yet:** YouTube/SoundCloud catalog search, provider artwork, and provider-authorized offline downloads. These integrations require official API access and must respect each provider's playback and download terms. Nextune does not extract audio from provider pages.
+- Fresh dark interface with a large now-playing screen and cover art
+- Reads embedded title, artist, album and cover artwork from supported local audio files
+- Local audio playback, seek, previous/next, favorites and playlists
+- Pitch and playback-speed sliders, including Nightcore and Slowed + Reverb presets
+- Android bass boost, equalizer/treble and reverb controls (hardware and device support can vary)
+- YouTube search, embedded official player, thumbnail artwork, queue, shuffle/repeat, recommendations generated from YouTube search, recent history and favorites
+- YouTube API key supplied at build time through the GitHub Actions secret `YOUTUBE_API_KEY`
+- Export of a local library/playlist backup
 
-## Build a test APK on Windows
+## YouTube API setup
 
-### 1. Install the tools
-- Install the Flutter SDK: https://docs.flutter.dev/get-started/install/windows
-- Install Android Studio: https://developer.android.com/studio
-- In Android Studio, install Android SDK Platform 35 and Android SDK Build-Tools.
-- Add the Flutter SDK's `bin` directory to your Windows PATH.
+1. In Google Cloud, enable **YouTube Data API v3** for a project.
+2. Create an API key and set appropriate application/API restrictions.
+3. Add a GitHub Actions repository secret named `YOUTUBE_API_KEY`.
+4. Run the **Build Android APK** workflow.
 
-### 2. Open PowerShell in the cloned repository
-```powershell
-git clone https://github.com/reqeuss/nextune.git
-cd nextune
-flutter doctor
-flutter create --platforms=android --org com.reqeuss .
+The app uses the key provided at compile time, so the user normally does not need to paste it into the app. **Important:** a key embedded in a mobile APK can be extracted. Do not use an unrestricted key for a public release; use strict Google Cloud restrictions or a backend proxy. YouTube search can also be affected by API quota, key restrictions and network connectivity.
+
+## YouTube playback limits
+
+Nextune uses the official embedded YouTube player and YouTube Data API. Not every video permits embedded playback, and no third-party app can guarantee that every search result will play. The recommendations in this version are search-based suggestions, not a copy of YouTube's private personalized Home feed. Pitch, speed and native effects apply to local audio only; the official YouTube player does not expose its audio stream for Nextune to process. The app does not download or extract YouTube audio.
+
+## Build
+
+The repository's GitHub Actions workflow generates the Android project, builds a release APK and uploads it as the `nextune-android-apk` artifact. Open **Actions → Build Android APK → latest successful run → Artifacts** to retrieve it.
+
+For local development, install Flutter and Android Studio, then run:
+
+```sh
 flutter pub get
-flutter build apk --debug
+flutter run
 ```
 
-If you already cloned the repository, just run the commands from `flutter doctor` onward inside the Nextune folder. The `flutter create` command generates the standard Android project files.
-
-### 3. Find the APK
-`build\app\outputs\flutter-apk\app-debug.apk`
-
-Send that file to your Android phone using USB, cloud storage, or a messaging app. Open it on your phone and allow installation from that source if Android asks.
-
-For a smaller, optimized test build, you can use `flutter build apk --release` after the first successful debug build.
-
 ## Notes
-- The backup stores metadata and local file paths, not the audio files themselves. Paths usually differ on another phone, so transfer your music separately and import it there.
-- Import/play only audio files you have the right to use.
-- Future streaming integrations must respect the providers' APIs and terms.
+
+- Local audio files remain on the device; backups contain library metadata and paths, not the audio files themselves.
+- Artwork is read from embedded metadata where the audio file format and file access allow it.
+- Playback and audio-effect support varies by file format and Android device.
