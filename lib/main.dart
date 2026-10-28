@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
+import 'youtube_page.dart';
 
 void main() => runApp(const NextuneApp());
 const violet = Color(0xFF9B6BFF);
@@ -55,7 +56,8 @@ class _HomePageState extends State<HomePage> {
   int current = -1, tab = 0;
   int? audioSessionId;
   Playlist? selectedPlaylist;
-  bool ready = false;
+  bool ready = false, shuffle = false;
+  int repeatMode = 0; // 0 = off, 1 = current track, 2 = playlist
   String effect = 'Normal';
 
   @override
@@ -64,6 +66,18 @@ class _HomePageState extends State<HomePage> {
     player.androidAudioSessionIdStream.listen((id) {
       audioSessionId = id;
       applyEffect(effect);
+    });
+    player.processingStateStream.listen((state) async {
+      if (state != ProcessingState.completed || tracks.isEmpty || current < 0) return;
+      if (repeatMode == 1) { await play(current); return; }
+      if (shuffle && tracks.length > 1) {
+        final choices = List<int>.generate(tracks.length, (i) => i).where((i) => i != current).toList()..shuffle();
+        await play(choices.first);
+      } else if (current + 1 < tracks.length) {
+        await play(current + 1);
+      } else if (repeatMode == 2) {
+        await play(0);
+      }
     });
     load();
   }
@@ -241,16 +255,18 @@ class _HomePageState extends State<HomePage> {
       ])),
       Expanded(child: ready ? page() : const Center(child:CircularProgressIndicator())),
       if (now != null) miniPlayer(now),
-      NavigationBar(backgroundColor:const Color(0xFF101017),indicatorColor:violet.withValues(alpha:.2),selectedIndex:tab,onDestinationSelected:(v)=>setState(() { tab=v; selectedPlaylist=null; }),destinations:const [
+      NavigationBar(backgroundColor:const Color(0xFF101017),indicatorColor:violet.withValues(alpha:.2),selectedIndex:tab,onDestinationSelected:(v) { if (v == 4) player.pause(); setState(() { tab=v; selectedPlaylist=null; }); },destinations:const [
         NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'Accueil'),
         NavigationDestination(icon:Icon(Icons.queue_music),label:'Playlists'),
         NavigationDestination(icon:Icon(Icons.favorite_border),selectedIcon:Icon(Icons.favorite),label:'Favoris'),
-        NavigationDestination(icon:Icon(Icons.tune),label:'Réglages')
+        NavigationDestination(icon:Icon(Icons.tune),label:'Réglages'),
+        NavigationDestination(icon:Icon(Icons.smart_display_outlined),selectedIcon:Icon(Icons.smart_display),label:'YouTube')
       ])
     ])));
   }
 
   Widget page() {
+    if (tab == 4) return const YoutubePage();
     if (tab == 3) return ListView(padding:const EdgeInsets.all(20),children:[
       const Text('Réglages',style:TextStyle(fontSize:28,fontWeight:FontWeight.w900)),
       const SizedBox(height:8),const Text('Tes données restent sur ton appareil.',style:TextStyle(color:Colors.white54)),
@@ -370,6 +386,11 @@ class _HomePageState extends State<HomePage> {
       IconButton(onPressed:previous,icon:const Icon(Icons.skip_previous_rounded)),
       StreamBuilder<PlayerState>(stream:player.playerStateStream,builder:(c,s)=>IconButton(onPressed:toggle,icon:Icon(s.data?.playing==true?Icons.pause_rounded:Icons.play_arrow_rounded,color:violet,size:30))),
       IconButton(onPressed:next,icon:const Icon(Icons.skip_next_rounded))
+    ]),
+    Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+      IconButton(visualDensity: VisualDensity.compact, tooltip: 'Lecture aléatoire', onPressed: () => setState(() => shuffle = !shuffle), icon: Icon(Icons.shuffle_rounded, size: 19, color: shuffle ? violet : Colors.white38)),
+      IconButton(visualDensity: VisualDensity.compact, tooltip: repeatMode == 0 ? 'Répétition désactivée' : repeatMode == 1 ? 'Répéter ce titre' : 'Répéter la playlist', onPressed: () => setState(() => repeatMode = (repeatMode + 1) % 3), icon: Icon(repeatMode == 1 ? Icons.repeat_one_rounded : Icons.repeat_rounded, size: 19, color: repeatMode == 0 ? Colors.white38 : violet)),
+      const SizedBox(width: 8),
     ]),
     StreamBuilder<Duration?>(stream:player.durationStream,builder:(c,d)=>StreamBuilder<Duration>(stream:player.positionStream,builder:(c,p){
       final max=(d.data??Duration.zero).inMilliseconds.toDouble().clamp(1.0,double.infinity).toDouble();
