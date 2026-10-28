@@ -595,7 +595,7 @@ class _HomePageState extends State<HomePage> {
     const Text('LECTURE', style: TextStyle(color: _accent, fontWeight: FontWeight.w900, letterSpacing: 1)),
     const SizedBox(height: 8),
     _actionCard(Icons.shuffle_rounded, 'Lecture aléatoire', _shuffle ? 'Activée' : 'Désactivée', () => setState(() => _shuffle = !_shuffle), trailing: Icon(_shuffle ? Icons.check_circle : Icons.circle_outlined, color: _shuffle ? _accent : Colors.white38)),
-    _actionCard(Icons.repeat_rounded, 'Répétition', const ['Désactivée', 'Titre actuel', 'Toute la file'][_repeat], () => setState(() => _repeat = (_repeat + 1) % 3), trailing: Icon(_repeat == 0 ? Icons.repeat : _repeat == 1 ? Icons.repeat_one : Icons.repeat_rounded, color: _repeat == 0 ? Colors.white38 : _accent)),
+    _actionCard(Icons.repeat_rounded, 'Répétition', ['Désactivée', 'Titre actuel', 'Toute la file'][_repeat], () => setState(() => _repeat = (_repeat + 1) % 3), trailing: Icon(_repeat == 0 ? Icons.repeat : _repeat == 1 ? Icons.repeat_one : Icons.repeat_rounded, color: _repeat == 0 ? Colors.white38 : _accent)),
     const SizedBox(height: 16),
     _actionCard(Icons.save_alt_rounded, 'Exporter une sauvegarde', 'Bibliothèque et playlists', _exportBackup),
     _actionCard(Icons.file_open_rounded, 'Importer une sauvegarde', 'Restaurer un fichier JSON', _importBackup),
