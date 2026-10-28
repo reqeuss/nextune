@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "lib/**"
+      - "tooling/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/android-apk.yml"
@@ -52,7 +53,10 @@ jobs:
           cache: true
 
       - name: Generate Android project
-        run: flutter create --platforms=android --org com.reqeuss .
+        run: |
+          flutter create --platforms=android --org com.reqeuss .
+          mkdir -p android/app/src/main/kotlin/com/reqeuss/nextune
+          cp tooling/MainActivity.kt android/app/src/main/kotlin/com/reqeuss/nextune/MainActivity.kt
 
       - name: Set application compile SDK to 36
         shell: bash
