@@ -6,10 +6,12 @@
 - Import audio files from your Android device
 - Play, pause, skip and seek through local tracks
 - Favorites saved locally
+- Create, rename and delete local playlists
+- Add tracks to playlists and play them offline when the source file is on the device
 - Export and import a JSON backup
-- Dark violet interface and audio-effect preset selector
+- Dark violet interface with live playback-speed controls and Android Bass Boost, BassMax and reverb effects where the device supports them
 
-**Not implemented yet:** actual Bass Boost, BassMax, Nightcore, Slowed + Reverb or equalizer DSP. The controls are currently interface previews. YouTube and SoundCloud are not integrated in this first build.
+**Not implemented yet:** YouTube/SoundCloud catalog search, provider artwork, and provider-authorized offline downloads. These integrations require official API access and must respect each provider's playback and download terms. Nextune does not extract audio from provider pages.
 
 ## Build a test APK on Windows
 
