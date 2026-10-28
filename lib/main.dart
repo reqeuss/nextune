@@ -289,7 +289,7 @@ class _PlayerHomeState extends State<PlayerHome> {
     ]);
   }
   Widget _songTile(Song s,int index,{bool compact=false})=>Container(margin:const EdgeInsets.only(bottom:9),decoration:BoxDecoration(color:index==current?const Color(0xFF222337):surface,borderRadius:BorderRadius.circular(17),border:Border.all(color:index==current?violet.withValues(alpha:.25):Colors.white.withValues(alpha:.025))),child:ListTile(
-    onTap:()=>_play(index),contentPadding:const EdgeInsets.symmetric(horizontal:11,vertical:compact?1:4),
+    onTap:()=>_play(index),contentPadding: EdgeInsets.symmetric(horizontal:11,vertical:compact?1:4),
     leading:ClipRRect(borderRadius:BorderRadius.circular(12),child:SizedBox(width:compact?47:54,height:compact?47:54,child:_art(s))),
     title:Text(s.title,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:13,fontWeight:FontWeight.w800,color:index==current?violet:Colors.white)),
     subtitle:Text(s.artist,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:Colors.white54)),
