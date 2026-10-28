@@ -276,7 +276,7 @@ class _HomePageState extends State<HomePage> {
       const SizedBox(height:24),const Text('ÉGALISEUR — APERÇU',style:TextStyle(color:violet,letterSpacing:1.5,fontWeight:FontWeight.bold)),
       const SizedBox(height:12),
       ...['Bass Boost','BassMax','Nightcore','Slowed + Reverb','Normal'].map((e)=>RadioListTile<String>(value:e,groupValue:effect,title:Text(e),activeColor:violet,onChanged:(v) { if (v != null) applyEffect(v); })),
-      const Text('Nightcore et Slowed changent la vitesse en direct. Bass Boost et BassMax activent le traitement audio Android lorsqu’il est pris en charge.',style:TextStyle(color:Colors.white38,fontSize:12))
+      const Text('Nightcore accélère avec un pitch plus aigu ; Slowed ralentit avec un pitch plus grave. Bass Boost, BassMax et la réverbération utilisent les effets audio Android lorsqu’ils sont pris en charge.',style:TextStyle(color:Colors.white38,fontSize:12))
     ]);
     if (tab == 1) {
       if (selectedPlaylist != null) {
