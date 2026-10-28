@@ -175,7 +175,9 @@ jobs:
           grep -R -nE 'compileSdk(Version)?[ =]+36' android/app android 2>/dev/null || true
 
       - name: Build release APK
-        run: flutter build apk --release
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: flutter build apk --release --dart-define=YOUTUBE_API_KEY="$YOUTUBE_API_KEY"
 
       - name: Verify APK output
         run: |
