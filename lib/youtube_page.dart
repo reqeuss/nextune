@@ -24,7 +24,8 @@ class _YoutubePageState extends State<YoutubePage> {
   final List<YoutubeTrack> _results = [], _queue = [];
   YoutubePlayerController? _player;
   YoutubeTrack? _current;
-  String _apiKey = const String.fromEnvironment('YOUTUBE_API_KEY');
+  static const String _buildApiKey = String.fromEnvironment('YOUTUBE_API_KEY');
+  String _apiKey = _buildApiKey;
   String? _error;
   bool _loading = false, _shuffle = false, _repeat = false;
   int _queueIndex = -1;
@@ -34,11 +35,21 @@ class _YoutubePageState extends State<YoutubePage> {
 
   Future<void> _loadKey() async {
     final prefs = await SharedPreferences.getInstance();
+    // A key injected by GitHub Actions takes priority over any key saved in the app.
+    if (_buildApiKey.isNotEmpty) return;
     final saved = prefs.getString('youtubeApiKey') ?? '';
     if (saved.isNotEmpty && mounted) setState(() => _apiKey = saved);
   }
 
   Future<void> _configureKey() async {
+    if (_buildApiKey.isNotEmpty) {
+      await showDialog<void>(context: context, builder: (context) => AlertDialog(
+        title: const Text('YouTube est configuré'),
+        content: const Text('La clé API a été fournie pendant la compilation via le secret YOUTUBE_API_KEY de GitHub. Tu n’as pas besoin de la saisir ici. Si la recherche échoue, vérifie que YouTube Data API v3 est activée et que la clé dispose du bon accès.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Compris'))],
+      ));
+      return;
+    }
     _keyInput.text = _apiKey;
     final value = await showDialog<String>(context: context, builder: (context) => AlertDialog(
       title: const Text('Configurer YouTube'),
@@ -140,9 +151,11 @@ class _YoutubePageState extends State<YoutubePage> {
         Text('YOUTUBE', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
         SizedBox(height: 3), Text('Trouve un son et lance-le ici.', style: TextStyle(color: Colors.white60)),
       ])),
-      IconButton(onPressed: _configureKey, tooltip: 'Configurer YouTube', icon: const Icon(Icons.settings_outlined)),
+      IconButton(onPressed: _configureKey, tooltip: 'État de la clé API', icon: Icon(Icons.key_rounded, color: _buildApiKey.isNotEmpty ? Colors.greenAccent : Colors.white70)),
     ]),
     const SizedBox(height: 16),
+    Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), decoration: BoxDecoration(color: _panel, borderRadius: BorderRadius.circular(12)), child: Row(children: [Icon(_buildApiKey.isNotEmpty || _apiKey.isNotEmpty ? Icons.check_circle_outline : Icons.info_outline, size: 18, color: _buildApiKey.isNotEmpty || _apiKey.isNotEmpty ? Colors.greenAccent : Colors.amberAccent), const SizedBox(width: 8), Expanded(child: Text(_buildApiKey.isNotEmpty ? 'Clé fournie par GitHub Actions' : _apiKey.isNotEmpty ? 'Clé API enregistrée sur cet appareil' : 'Clé API à configurer', style: const TextStyle(fontSize: 12, color: Colors.white70)))])),
+    const SizedBox(height: 12),
     Container(decoration: BoxDecoration(color: _panel, borderRadius: BorderRadius.circular(18), border: Border.all(color: _purple.withValues(alpha: .25))),
       child: Row(children: [
         const SizedBox(width: 14), const Icon(Icons.search_rounded, color: _purple), const SizedBox(width: 8),
@@ -185,7 +198,7 @@ class _YoutubePageState extends State<YoutubePage> {
       Container(margin: const EdgeInsets.only(top: 24), padding: const EdgeInsets.all(25), decoration: BoxDecoration(color: _panel, borderRadius: BorderRadius.circular(20)), child: const Column(children: [
         Icon(Icons.graphic_eq_rounded, color: _purple, size: 44), SizedBox(height: 10),
         Text('Quel son tu cherches ?', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)), SizedBox(height: 5),
-        Text('Cherche un titre, touche un résultat et écoute-le dans le lecteur intégré.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)),
+        Text('Cherche un titre, touche un résultat et écoute-le dans le lecteur YouTube intégré. Les effets de pitch sont disponibles pour les fichiers locaux, pas pour le lecteur YouTube.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)),
       ])),
   ]);
 
