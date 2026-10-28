@@ -95,7 +95,8 @@ class _YoutubePageState extends State<YoutubePage> {
       if (found.isEmpty) setState(() => _error = 'Aucun résultat trouvé. Essaie une autre recherche.');
     } catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _error = 'Recherche impossible : ${e.toString().replaceFirst('Exception: ', '')}'; });
+      final message = e.toString().replaceFirst('Exception: ', '');
+      setState(() { _loading = false; _error = 'Recherche impossible : $message'; });
     }
   }
 
