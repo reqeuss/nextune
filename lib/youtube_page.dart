@@ -161,8 +161,8 @@ class _YoutubePageState extends State<YoutubePage> {
             Row(children: [
               IconButton(onPressed: () => setState(() => _shuffle = !_shuffle), tooltip: 'Aléatoire', color: _shuffle ? _purple : Colors.white54, icon: const Icon(Icons.shuffle_rounded)),
               IconButton(onPressed: () => _step(-1), icon: const Icon(Icons.skip_previous_rounded, size: 30)),
-              IconButton(onPressed: () => _player?.play(), icon: const Icon(Icons.play_arrow_rounded, size: 30)),
-              IconButton(onPressed: () => _player?.pause(), icon: const Icon(Icons.pause_rounded, size: 28)),
+              IconButton(onPressed: () => _player?.playVideo(), icon: const Icon(Icons.play_arrow_rounded, size: 30)),
+              IconButton(onPressed: () => _player?.pauseVideo(), icon: const Icon(Icons.pause_rounded, size: 28)),
               IconButton(onPressed: () => _step(1), icon: const Icon(Icons.skip_next_rounded, size: 30)),
               IconButton(onPressed: () => setState(() => _repeat = !_repeat), tooltip: 'Répéter la file', color: _repeat ? _purple : Colors.white54, icon: const Icon(Icons.repeat_rounded)),
             ]),
