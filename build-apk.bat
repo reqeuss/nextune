@@ -22,7 +22,12 @@ if not exist "android\settings.gradle" (
   echo [2/4] Android project already exists.
 )
 
-echo [3/4] Setting Android compile SDK to 36...
+echo [3/5] Installing Nextune's native audio effects bridge...
+if not exist "android\app\src\main\kotlin\com\reqeuss\nextune" mkdir "android\app\src\main\kotlin\com\reqeuss\nextune"
+copy /Y "tooling\MainActivity.kt" "android\app\src\main\kotlin\com\reqeuss\nextune\MainActivity.kt" >nul
+if errorlevel 1 goto failed
+
+echo [4/5] Setting Android compile SDK to 36...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$files = @('android/app/build.gradle.kts', 'android/app/build.gradle'); foreach ($file in $files) { if (Test-Path $file) { $content = Get-Content $file -Raw; $content = $content.Replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'); $content = $content.Replace('compileSdk flutter.compileSdkVersion', 'compileSdk 36'); Set-Content -Path $file -Value $content -NoNewline } }"
 if errorlevel 1 goto failed
 
