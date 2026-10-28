@@ -103,10 +103,10 @@ jobs:
               for gradle_file in list(android_dir.glob("build.gradle")) + list(android_dir.glob("build.gradle.kts")):
                   original = gradle_file.read_text()
                   updated = original
-                  updated = re.sub(r"(?m)(\\bcompileSdkVersion\\s*(?:=\\s*)?)(\\d+)", r"\\g<1>36", updated)
-                  updated = re.sub(r"(?m)(\\bcompileSdkVersion\\s*\\(\\s*)(\\d+)(\\s*\\))", r"\\g<1>36\\3", updated)
-                  updated = re.sub(r"(?m)(\\bcompileSdk\\s*=\\s*)(\\d+)", r"\\g<1>36", updated)
-                  updated = re.sub(r"(?m)(\\bcompileSdk\\s+)(\\d+)", r"\\g<1>36", updated)
+                  updated = re.sub(r"(?m)(\bcompileSdkVersion\s*(?:=\s*)?)(\d+)", r"\g<1>36", updated)
+                  updated = re.sub(r"(?m)(\bcompileSdkVersion\s*\(\s*)(\d+)(\s*\))", r"\g<1>36\3", updated)
+                  updated = re.sub(r"(?m)(\bcompileSdk\s*=\s*)(\d+)", r"\g<1>36", updated)
+                  updated = re.sub(r"(?m)(\bcompileSdk\s+)(\d+)", r"\g<1>36", updated)
                   if updated != original:
                       gradle_file.write_text(updated)
                       patched_files.append(f"{name}: {gradle_file}")
