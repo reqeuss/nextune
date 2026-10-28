@@ -99,7 +99,8 @@ class _YoutubePageState extends State<YoutubePage> {
     if(response.statusCode!=200){
       final error=data['error'] as Map<String,dynamic>?;
       final errors=error?['errors'] as List?;
-      final reason=errors!=null&&errors.isNotEmpty?(errors.first as Map<String,dynamic>?)?['reason']?.toString():null;
+      final firstError=errors!=null&&errors.isNotEmpty?errors.first:null;
+      final reason=firstError is Map?firstError['reason']?.toString():null;
       final message=error?['message']?.toString()??'Erreur HTTP ${response.statusCode}';
       if(reason=='quotaExceeded'||message.toLowerCase().contains('quota'))throw Exception('Quota YouTube épuisé. Réessaie après la réinitialisation du quota.');
       if(response.statusCode==403)throw Exception('Accès refusé. Vérifie la clé, les restrictions et YouTube Data API v3.');
